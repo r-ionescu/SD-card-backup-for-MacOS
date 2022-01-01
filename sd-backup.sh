@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5.4'
+readonly SCRIPT_VERSION='0.5.5'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -8,11 +8,11 @@ readonly SCRIPT_NAME="${tmp##*/}"
 readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} v${SCRIPT_VERSION} - SD card backup for MacOS \n${LINE}\n"
 readonly OS_TYPE="$(uname)"
 
-declare TS _doNotAskForConfirmation _srcDisk srcDisk _destFile destFile
-declare -i srcDiskSize
+declare TS _doNotAskForConfirmation _disk disk _imgFile imgFile
+declare -i diskSize
 
 readonly defaultBS='1m'
-readonly defaultDestFile="./SD-card.bs${defaultBS}.dd.img"
+readonly defaultImgFile="./SD-card.bs${defaultBS}.dd.img"
 
 if [[ "$@" =~ -y ]]
 	then
@@ -31,10 +31,10 @@ function SHOW_USAGE()
 cat <<EOF
 USAGE:
 
-  ${SCRIPT_NAME} [source-device] [backup-file-name] [-y]
+  ${SCRIPT_NAME} [disk-device] [backup-file-name] [-y]
 
-    source-device        = source device (SD card, eg: /dev/disk2).
-    backup-file-name     = backup file name; default value is "${defaultDestFile}"".
+    disk-device          = disk device (SD card, eg: /dev/disk2).
+    backup-file-name     = backup file name; default value is "${defaultImgFile}"".
     -y                   = do NOT ask for confirmation for starting backup process.
 
 EOF
@@ -53,7 +53,7 @@ readonly -f getTimeStamp
 
 function searchDisks()
 {
- if [ ! "$srcDisk" ]
+ if [ ! "$disk" ]
  	then
 		declare md isMatch regexPattern="$1"
 		shift
@@ -65,7 +65,7 @@ function searchDisks()
 
 			if [ "$isMatch" ]
 				then
-					srcDisk="$md"
+					disk="$md"
 					break
 				fi
 		done
@@ -95,12 +95,12 @@ if [[ "$@" =~ -{1,2}help ]]
 
 
 
-srcDisk="$1"
-if [[ "$srcDisk" =~ -y ]]
+disk="$1"
+if [[ "$disk" =~ -y ]]
   then
-     srcDisk=''
+     disk=''
   fi
-if [ ! "$srcDisk" ]
+if [ ! "$disk" ]
   then
     declare -a mountedDisks=($(diskutil list | grep -oE '\/dev\/disk[0-9]+' | sort -u))
 
@@ -109,45 +109,45 @@ if [ ! "$srcDisk" ]
 
 		unset mountedDisks
   fi
-if [ ! "$srcDisk" ]
+if [ ! "$disk" ]
 then
   getTimeStamp
-  echo -e "[${TS}] ERROR - Unable to detect SD card automatically.\nPlease specify \"source-device\" as first parameter of the script.\n"
+  echo -e "[${TS}] ERROR - Unable to detect SD card automatically.\nPlease specify \"disk-device\" as first parameter of the script.\n"
   SHOW_USAGE
   exit 254
 fi
-if [[ ! "$srcDisk" =~ ^/dev/ ]]
+if [[ ! "$disk" =~ ^/dev/ ]]
   then
-    srcDisk="/dev/${srcDisk}"
+    disk="/dev/${disk}"
   fi
-srcDisk="${srcDisk/\/dev\/disk//dev/rdisk}"
-_srcDisk="${srcDisk/\/dev\/rdisk//dev/disk}"
-readonly _srcDisk srcDisk
+disk="${disk/\/dev\/disk//dev/rdisk}"
+_disk="${disk/\/dev\/rdisk//dev/disk}"
+readonly _disk disk
 
 
-srcDiskSize=$(diskutil info "$srcDisk" 2>/dev/null | grep -E 'Disk\s+Size' | tr ' ' '\n' | grep -E '\S' | head -5 | tail -1 | grep -oE '[0-9]+')
-readonly srcDiskSize
-if [ ! "$srcDiskSize" ]
+diskSize=$(diskutil info "$disk" 2>/dev/null | grep -E 'Disk\s+Size' | tr ' ' '\n' | grep -E '\S' | head -5 | tail -1 | grep -oE '[0-9]+')
+readonly diskSize
+if [ ! "$diskSize" ]
   then
     getTimeStamp
-		echo "[${TS}] ERROR - Disk not found: ${srcDisk}"
+		echo "[${TS}] ERROR - Disk not found: ${disk}"
 		exit 253
   fi
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-destFile="${2:-$defaultDestFile}"
-if [[ "$destFile" =~ -y ]]
+imgFile="${2:-$defaultImgFile}"
+if [[ "$imgFile" =~ -y ]]
   then
-     destFile="${defaultDestFile}"
+     imgFile="${defaultImgFile}"
   fi
-_destFile="${destFile##*/}"
-readonly _destFile destFile
+_imgFile="${imgFile##*/}"
+readonly _imgFile imgFile
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-printf '%-20s %s\n' "Source disk:" "${srcDisk} (${srcDiskSize} bytes)"
-printf '%-20s %s\n' "Destination file:" "${destFile}.zip"
+printf '%-20s %s\n' "Disk:" "${disk} (${diskSize} bytes)"
+printf '%-20s %s\n' "Backup file:" "${imgFile}.zip"
 echo
 
 
@@ -159,28 +159,28 @@ if [ ! "${_doNotAskForConfirmation}" ]
   fi
 
 
-if [ "$(mount | grep "${_srcDisk}")" ]
+if [ "$(mount | grep "${_disk}")" ]
   then
     getTimeStamp
-    echo -e "[${TS}] Unmounting disk ${srcDisk}..."
-    diskutil umountdisk "$srcDisk" || exit 252
+    echo -e "[${TS}] Unmounting disk ${disk}..."
+    diskutil umountdisk "$disk" || exit 252
     echo
   fi
 
 
-rm -f "${destFile}" 2>&1 1>/dev/null
-rm -f "${destFile}.zip" 2>&1 1>/dev/null
+rm -f "${imgFile}" 2>&1 1>/dev/null
+rm -f "${imgFile}.zip" 2>&1 1>/dev/null
 getTimeStamp
 echo "[${TS}] Backup process started."
-mkfifo "${destFile}" || exit 251
+mkfifo "${imgFile}" || exit 251
 if [ "$(pv -V)" ]
   then
-    dd if="${srcDisk}" bs="${defaultBS}" | pv  --progress --wait --width 79 --size $srcDiskSize | dd of="${destFile}" bs="${defaultBS}" &
+    dd if="${disk}" bs="${defaultBS}" | pv  --progress --wait --width 79 --size $diskSize | dd of="${imgFile}" bs="${defaultBS}" &
   else
-    dd if="${srcDisk}" of="${destFile}" bs="${defaultBS}" &
+    dd if="${disk}" of="${imgFile}" bs="${defaultBS}" &
   fi
-zip -9q --fifo "${destFile}.zip" "${destFile}" || exit 250
-rm -f "${destFile}" 2>&1 1>/dev/null
+zip -9q --fifo "${imgFile}.zip" "${imgFile}" || exit 250
+rm -f "${imgFile}" 2>&1 1>/dev/null
 getTimeStamp
 echo -e "[${TS}] Backup process finished\n"
 
