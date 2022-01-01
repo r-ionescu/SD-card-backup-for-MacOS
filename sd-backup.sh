@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5.1'
+readonly SCRIPT_VERSION='0.5.2'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -11,7 +11,7 @@ readonly OS_TYPE="$(uname)"
 declare TS _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
 
 readonly defaultBS='1m'
-readonly defaultDestFile="SD-card.bs${defaultBS}.dd.img"
+readonly defaultDestFile="./SD-card.bs${defaultBS}.dd.img"
 
 if [[ "$@" =~ -y ]]
 	then
