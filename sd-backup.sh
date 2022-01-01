@@ -1,11 +1,11 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5.2'
+readonly SCRIPT_VERSION='0.5.3'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
 readonly SCRIPT_NAME="${tmp##*/}"
-readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS v${SCRIPT_VERSION}\n${LINE}\n"
+readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} v${SCRIPT_VERSION} - SD card backup for MacOS \n${LINE}\n"
 readonly OS_TYPE="$(uname)"
 
 declare TS _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
