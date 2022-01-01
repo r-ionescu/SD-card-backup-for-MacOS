@@ -1,6 +1,13 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5.5'
+
+set -o pipefail
+shopt -s nocasematch
+
+
+#////////////////////////////////////////////////////////////////////////////////////////////
+
+readonly SCRIPT_VERSION='0.6'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -19,10 +26,6 @@ if [[ "$@" =~ -y ]]
 		_doNotAskForConfirmation="true"
 	fi
 readonly _doNotAskForConfirmation
-
-#////////////////////////////////////////////////////////////////////////////////////////////
-
-shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -71,6 +74,15 @@ function searchDisks()
 		done
 	fi
 }
+
+#////////////////////////////////////////////////////////////////////////////////////////////
+
+cleanup()
+{
+ if [ "${imgFile}" ]; then rm -f "${imgFile}" 2>&1 1>/dev/null; fi
+ if [ "${tmpFile}" ]; then rm -f "${tmpFile}" 2>&1 1>/dev/null; fi
+}
+trap cleanup EXIT
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -167,23 +179,33 @@ if [ "$(mount | grep "${_disk}")" ]
     echo
   fi
 
-
-rm -f "${imgFile}" 2>&1 1>/dev/null
+declare -i pid
+rm -f "${imgFile}"     2>&1 1>/dev/null
 rm -f "${imgFile}.zip" 2>&1 1>/dev/null
 getTimeStamp
-echo "[${TS}] Backup process started."
+declare tmpFile=$(mktemp -u)
 mkfifo "${imgFile}" || exit 251
+
 if [ "$(pv -V)" ]
   then
-    dd if="${disk}" bs="${defaultBS}" | pv  --progress --wait --width 79 --size $diskSize | dd of="${imgFile}" bs="${defaultBS}" &
+    ( dd if="${disk}" bs="${defaultBS}" & echo $! >&3 ) 3>"${tmpFile}" | pv  --progress --wait --width 79 --size $diskSize | dd of="${imgFile}" bs="${defaultBS}" &
+		pid=$(<"${tmpFile}")
   else
     dd if="${disk}" of="${imgFile}" bs="${defaultBS}" &
+		pid=$!
   fi
-zip -9q --fifo "${imgFile}.zip" "${imgFile}" || exit 250
-rm -f "${imgFile}" 2>&1 1>/dev/null
+
+if ps -p $pid 2>&1 1>/dev/null
+	then
+		echo "[${TS}] Backup process started."
+		zip -9q --fifo "${imgFile}.zip" "${imgFile}" || exit 250
+	else
+		exit 250
+	fi
+
+
+
 getTimeStamp
-echo -e "[${TS}] Backup process finished\n"
-
-
+echo -e "[${TS}] Backup process finished.\n"
 sync 2>/dev/null
 exit 0
