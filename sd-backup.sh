@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5'
+readonly SCRIPT_VERSION='0.5.1'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -177,9 +177,5 @@ getTimeStamp
 echo -e "[${TS}] Backup complete\n"
 
 
-sync 2>/dev/null
-
-
-cho "[${TS}] Process complete"
 sync 2>/dev/null
 exit 0
