@@ -1,13 +1,13 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.2'
+readonly SCRIPT_VERSION='0.3'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
 readonly SCRIPT_NAME="${tmp##*/}"
 readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS v${SCRIPT_VERSION}\n${LINE}\n"
 
-declare TS _hasPV _isSD _isMounted _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
+declare TS _hasPV _isMounted _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
 
 readonly _hasPV=$(pv -V)
 readonly defaultBS='64m'
@@ -51,6 +51,33 @@ readonly -f getTimeStamp
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
+function searchDisks()
+{
+ if [ ! "$srcDisk" ]
+ 	then
+		declare md isMatch regexPattern="$1"
+		shift
+  	declare -a mountedDisks=("$@")
+
+		for md in "${mountedDisks[@]}"
+		do
+			isMatch=$(diskutil info "$md" 2>/dev/null | grep -oE "${regexPattern}")
+
+			if [ "$isMatch" ]
+				then
+					srcDisk="$md"
+					break
+				fi
+		done
+	fi
+}
+
+#////////////////////////////////////////////////////////////////////////////////////////////
+
+echo -e "${SCRIPT_HEADER}\n"
+
+
+
 srcDisk="$1"
 if [[ "$srcDisk" =~ -y ]]
   then
@@ -58,25 +85,17 @@ if [[ "$srcDisk" =~ -y ]]
   fi
 if [ ! "$srcDisk" ]
   then
-    declare md
     declare -a mountedDisks=($(diskutil list | grep -oE '\/dev\/disk[0-9]+' | sort -u))
 
-    for md in "${mountedDisks[@]}"
-    do
-      _isSD=$(diskutil info "$md" 2>/dev/null | grep -oE 'SD\s+Card')
+		searchDisks 'SD\s+Card\s+Reader' "${mountedDisks[@]}"
+		searchDisks 'USB\s+SD\s+Reader' "${mountedDisks[@]}"
 
-			if [ "$_isSD" ]
-        then
-          srcDisk="$md"
-          break
-        fi
-    done
-    unset md mountedDisks
+		unset mountedDisks
   fi
 if [ ! "$srcDisk" ]
 then
   getTimeStamp
-  echo -e "${SCRIPT_HEADER}\n[${TS}] ERROR - Unable to detect SD card automatically.\nPlease specify \"source-device\" as first parameter of the script.\n"
+  echo -e "[${TS}] ERROR - Unable to detect SD card automatically.\nPlease specify \"source-device\" as first parameter of the script.\n"
   SHOW_USAGE
   exit 255
 fi
@@ -94,7 +113,7 @@ readonly srcDiskSize
 if [ ! "$srcDiskSize" ]
   then
     getTimeStamp
-		echo "${SCRIPT_HEADER}\n[${TS}] ERROR - Disk not found: ${srcDisk}"
+		echo "[${TS}] ERROR - Disk not found: ${srcDisk}"
 		exit 254
   fi
 
