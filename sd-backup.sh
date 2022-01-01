@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.5.3'
+readonly SCRIPT_VERSION='0.5.4'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -8,7 +8,8 @@ readonly SCRIPT_NAME="${tmp##*/}"
 readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} v${SCRIPT_VERSION} - SD card backup for MacOS \n${LINE}\n"
 readonly OS_TYPE="$(uname)"
 
-declare TS _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
+declare TS _doNotAskForConfirmation _srcDisk srcDisk _destFile destFile
+declare -i srcDiskSize
 
 readonly defaultBS='1m'
 readonly defaultDestFile="./SD-card.bs${defaultBS}.dd.img"
@@ -123,6 +124,7 @@ srcDisk="${srcDisk/\/dev\/disk//dev/rdisk}"
 _srcDisk="${srcDisk/\/dev\/rdisk//dev/disk}"
 readonly _srcDisk srcDisk
 
+
 srcDiskSize=$(diskutil info "$srcDisk" 2>/dev/null | grep -E 'Disk\s+Size' | tr ' ' '\n' | grep -E '\S' | head -5 | tail -1 | grep -oE '[0-9]+')
 readonly srcDiskSize
 if [ ! "$srcDiskSize" ]
@@ -139,6 +141,8 @@ if [[ "$destFile" =~ -y ]]
   then
      destFile="${defaultDestFile}"
   fi
+_destFile="${destFile##*/}"
+readonly _destFile destFile
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -164,17 +168,21 @@ if [ "$(mount | grep "${_srcDisk}")" ]
   fi
 
 
+rm -f "${destFile}" 2>&1 1>/dev/null
 rm -f "${destFile}.zip" 2>&1 1>/dev/null
 getTimeStamp
 echo "[${TS}] Backup process started."
+mkfifo "${destFile}" || exit 251
 if [ "$(pv -V)" ]
   then
-    dd if="$srcDisk" bs="$defaultBS" | pv  --progress --wait --width 79 --size $srcDiskSize | zip -9q | dd of="${destFile}.zip" bs="$defaultBS" || exit 251
+    dd if="${srcDisk}" bs="${defaultBS}" | pv  --progress --wait --width 79 --size $srcDiskSize | dd of="${destFile}" bs="${defaultBS}" &
   else
-    dd if="$srcDisk" bs="$defaultBS" | zip -9q | dd of="${destFile}.zip" bs="$defaultBS" || exit 251
+    dd if="${srcDisk}" of="${destFile}" bs="${defaultBS}" &
   fi
+zip -9q --fifo "${destFile}.zip" "${destFile}" || exit 250
+rm -f "${destFile}" 2>&1 1>/dev/null
 getTimeStamp
-echo -e "[${TS}] Backup complete\n"
+echo -e "[${TS}] Backup process finished\n"
 
 
 sync 2>/dev/null
