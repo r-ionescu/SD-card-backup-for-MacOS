@@ -1,10 +1,11 @@
 #!/bin/bash
 
+readonly SCRIPT_VERSION='0.2'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
 readonly SCRIPT_NAME="${tmp##*/}"
-readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS\n${LINE}\n"
+readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS v${SCRIPT_VERSION}\n${LINE}\n"
 
 declare TS _hasPV _isSD _isMounted _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
 
@@ -58,12 +59,13 @@ if [[ "$srcDisk" =~ -y ]]
 if [ ! "$srcDisk" ]
   then
     declare md
-    declare -a mountedDisks=($(mount | grep -oE '\/dev\/disk[0-9]+' | sort -u | tr '\n' ' '))
+    declare -a mountedDisks=($(diskutil list | grep -oE '\/dev\/disk[0-9]+' | sort -u))
 
     for md in "${mountedDisks[@]}"
     do
       _isSD=$(diskutil info "$md" 2>/dev/null | grep -oE 'SD\s+Card')
-      if [ "$_isSD" ]
+
+			if [ "$_isSD" ]
         then
           srcDisk="$md"
           break
@@ -130,10 +132,11 @@ getTimeStamp
 echo "[${TS}] Starting backup..."
 if [ "$_hasPV" ]
   then
-    dd if="$srcDisk" bs="$defaultBS" | pv -s $srcDiskSize | dd of="$destFile" bs="$defaultBS"
+    dd if="$srcDisk" bs="$defaultBS" | pv -s $srcDiskSize | dd of="$destFile" bs="$defaultBS" || exit 252
   else
-    dd if="$srcDisk" of="$destFile" bs="$defaultBS"
+    dd if="$srcDisk" of="$destFile" bs="$defaultBS" || exit 252
   fi
 
 getTimeStamp
 echo "[${TS}] done"
+exit 0
