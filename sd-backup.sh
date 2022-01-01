@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.3'
+readonly SCRIPT_VERSION='0.4'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -10,7 +10,7 @@ readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS v$
 declare TS _hasPV _isMounted _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
 
 readonly _hasPV=$(pv -V)
-readonly defaultBS='64m'
+readonly defaultBS='1m'
 readonly defaultDestFile="SD-card.bs${defaultBS}.dd.img"
 
 if [[ "$@" =~ -y ]]
@@ -127,7 +127,6 @@ if [[ "$destFile" =~ -y ]]
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-echo -e "\n${SCRIPT_HEADER}\n"
 printf '%-20s %s\n' "Source disk:" "${srcDisk} (${srcDiskSize} bytes)"
 printf '%-20s %s\n' "Destination file:" "${destFile}"
 echo
@@ -148,14 +147,31 @@ if [ "${_isMounted}" ]
 
 
 getTimeStamp
-echo "[${TS}] Starting backup..."
+echo "[${TS}] Backup process started."
 if [ "$_hasPV" ]
   then
-    dd if="$srcDisk" bs="$defaultBS" | pv -s $srcDiskSize | dd of="$destFile" bs="$defaultBS" || exit 252
+    dd if="$srcDisk" bs="$defaultBS" | pv  --progress --wait --width 79 --size $srcDiskSize | dd of="$destFile" bs="$defaultBS" || exit 252
   else
     dd if="$srcDisk" of="$destFile" bs="$defaultBS" || exit 252
   fi
-
 getTimeStamp
-echo "[${TS}] done"
+echo -e "[${TS}] Backup complete\n"
+
+
+
+sync 2>/dev/null
+
+
+rm -fv "${destFile}.zip" 2>/dev/null
+echo "ZIP compress image..."
+zip -m9q "${destFile}.zip" "${destFile}"  || exit 251
+
+
+
+sync 2>/dev/null
+
+
+
+echo "[${TS}] Process complete"
+sync 2>/dev/null
 exit 0
