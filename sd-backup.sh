@@ -1,15 +1,15 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION='0.4'
+readonly SCRIPT_VERSION='0.5'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
 readonly SCRIPT_NAME="${tmp##*/}"
 readonly SCRIPT_HEADER="\n${LINE}\n ${SCRIPT_NAME} - SD card backup for MacOS v${SCRIPT_VERSION}\n${LINE}\n"
+readonly OS_TYPE="$(uname)"
 
-declare TS _hasPV _isMounted _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
+declare TS _doNotAskForConfirmation defaultBS _srcDisk srcDisk srcDiskSize destFile defaultDestFile
 
-readonly _hasPV=$(pv -V)
 readonly defaultBS='1m'
 readonly defaultDestFile="SD-card.bs${defaultBS}.dd.img"
 
@@ -28,7 +28,6 @@ shopt -s nocasematch
 function SHOW_USAGE()
 {
 cat <<EOF
-
 USAGE:
 
   ${SCRIPT_NAME} [source-device] [backup-file-name] [-y]
@@ -74,7 +73,24 @@ function searchDisks()
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-echo -e "${SCRIPT_HEADER}\n"
+echo -e "${SCRIPT_HEADER}"
+
+
+
+if [[ ! $OS_TYPE == 'darwin' ]]
+	then
+		getTimeStamp
+	  echo "[${TS}] ERROR - This script is intented to run on MacOS"
+	  exit 255
+	fi
+
+
+
+if [[ "$@" =~ -{1,2}help ]]
+	then
+		SHOW_USAGE
+		exit 0
+	fi
 
 
 
@@ -97,7 +113,7 @@ then
   getTimeStamp
   echo -e "[${TS}] ERROR - Unable to detect SD card automatically.\nPlease specify \"source-device\" as first parameter of the script.\n"
   SHOW_USAGE
-  exit 255
+  exit 254
 fi
 if [[ ! "$srcDisk" =~ ^/dev/ ]]
   then
@@ -105,8 +121,7 @@ if [[ ! "$srcDisk" =~ ^/dev/ ]]
   fi
 srcDisk="${srcDisk/\/dev\/disk//dev/rdisk}"
 _srcDisk="${srcDisk/\/dev\/rdisk//dev/disk}"
-_isMounted=$(mount | grep "${_srcDisk}")
-readonly _srcDisk _isMounted srcDisk
+readonly _srcDisk srcDisk
 
 srcDiskSize=$(diskutil info "$srcDisk" 2>/dev/null | grep -E 'Disk\s+Size' | tr ' ' '\n' | grep -E '\S' | head -5 | tail -1 | grep -oE '[0-9]+')
 readonly srcDiskSize
@@ -114,7 +129,7 @@ if [ ! "$srcDiskSize" ]
   then
     getTimeStamp
 		echo "[${TS}] ERROR - Disk not found: ${srcDisk}"
-		exit 254
+		exit 253
   fi
 
 #////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,8 +143,10 @@ if [[ "$destFile" =~ -y ]]
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 printf '%-20s %s\n' "Source disk:" "${srcDisk} (${srcDiskSize} bytes)"
-printf '%-20s %s\n' "Destination file:" "${destFile}"
+printf '%-20s %s\n' "Destination file:" "${destFile}.zip"
 echo
+
+
 if [ ! "${_doNotAskForConfirmation}" ]
   then
     read -p "Start backup process? " -n 1 -r
@@ -137,41 +154,32 @@ if [ ! "${_doNotAskForConfirmation}" ]
     if [[ ! $REPLY =~ ^y$ ]]; then exit 1; fi
   fi
 
-if [ "${_isMounted}" ]
+
+if [ "$(mount | grep "${_srcDisk}")" ]
   then
     getTimeStamp
-    echo -e "[${TS}] Unmounting disk ${_srcDisk}..."
-    diskutil umountdisk "$srcDisk" || exit 253
+    echo -e "[${TS}] Unmounting disk ${srcDisk}..."
+    diskutil umountdisk "$srcDisk" || exit 252
     echo
   fi
 
 
+rm -f "${destFile}.zip" 2>&1 1>/dev/null
 getTimeStamp
 echo "[${TS}] Backup process started."
-if [ "$_hasPV" ]
+if [ "$(pv -V)" ]
   then
-    dd if="$srcDisk" bs="$defaultBS" | pv  --progress --wait --width 79 --size $srcDiskSize | dd of="$destFile" bs="$defaultBS" || exit 252
+    dd if="$srcDisk" bs="$defaultBS" | pv  --progress --wait --width 79 --size $srcDiskSize | zip -9q | dd of="${destFile}.zip" bs="$defaultBS" || exit 251
   else
-    dd if="$srcDisk" of="$destFile" bs="$defaultBS" || exit 252
+    dd if="$srcDisk" bs="$defaultBS" | zip -9q | dd of="${destFile}.zip" bs="$defaultBS" || exit 251
   fi
 getTimeStamp
 echo -e "[${TS}] Backup complete\n"
 
 
-
 sync 2>/dev/null
 
 
-rm -fv "${destFile}.zip" 2>/dev/null
-echo "ZIP compress image..."
-zip -m9q "${destFile}.zip" "${destFile}"  || exit 251
-
-
-
-sync 2>/dev/null
-
-
-
-echo "[${TS}] Process complete"
+cho "[${TS}] Process complete"
 sync 2>/dev/null
 exit 0
