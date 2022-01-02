@@ -7,7 +7,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.7.1'
+readonly SCRIPT_VERSION='0.7.2'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -162,15 +162,15 @@ readonly _imgFile imgFile
 printf '%-30s %s\n'   "Action:"        "${CLI_param_action}"
 printf '%-30s %s\n'   "Disk:"          "${disk} (${diskSize} bytes)"
 printf '%-30s %s\n'   "Backup file:"   "${imgFile}.zip"
-echo
+echo -e "\n"
 
 
 
 if [ ! "${CLI_param_doNotAskForConfirmation}" ]
   then
-    read -p "Start ${CLI_param_action} process? " -n 1 -r
-    echo
+		read -p "Start ${CLI_param_action} process? " -n 1 -r
     if [[ ! $REPLY =~ ^y$ ]]; then exit 1; fi
+		echo -e "\n"
   fi
 
 sync 2>/dev/null
