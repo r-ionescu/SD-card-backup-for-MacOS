@@ -7,7 +7,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.7'
+readonly SCRIPT_VERSION='0.7.1'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -41,10 +41,18 @@ USAGE:
 
   ${SCRIPT_NAME} [disk-device] [backup-file-name] [-r | --restore] [-y | --yes]
 
-    disk-device          = disk device (SD/USB card, eg: /dev/disk2).
-    backup-file-name     = backup file name; default value is "${defaultImgFile}"".
-		-r | --restore       = if present, restore to disk from backup file.
-    -y | --yes           = do NOT ask for confirmation for starting backup process.
+
+    positional parameters:
+
+      disk-device          SD/USB card, eg:/dev/disk2
+      backup-file-name     backup file name
+                           default value is "${defaultImgFile}""
+
+
+    optional parameters:
+
+      -r | --restore       restore to disk from backup file
+      -y | --yes           do NOT ask for confirmation for starting
 
 EOF
 
@@ -178,7 +186,7 @@ if [ "$(mount | grep "${_disk}")" ]
  case "${CLI_param_action}" in
 
 	 "backup")
-	 		declare -i pid pidZIP
+	 		declare -i pidDD pidZIP
 			rm -f "${imgFile}"     2>&1 1>/dev/null
 			rm -f "${imgFile}.zip" 2>&1 1>/dev/null
 			getTimeStamp
@@ -192,20 +200,20 @@ if [ "$(mount | grep "${_disk}")" ]
 				else
 					dd if="${disk}" of="${imgFile}" bs="${defaultBS}" 2>&1 &
 				fi
-			pid=$!
+			pidDD=$!
 
-			if ps -p $pid 2>&1 1>/dev/null
+			if ps -p ${pidDD} 2>&1 1>/dev/null
 				then
 					echo "[${TS}] ${CLI_param_action} process started."
 					zip -9q --fifo "${imgFile}.zip" "${imgFile}" &
 					pidZIP=$!
 					while :
 						do
-							if ps -p $pidZIP 2>&1 1>/dev/null
+							if ps -p ${pidZIP} 2>&1 1>/dev/null
 								then
-									if ! ps -p $pid 2>&1 1>/dev/null
+									if ! ps -p ${pidDD} 2>&1 1>/dev/null
 										then
-											if disown $pidZIP 2>&1 1>/dev/null; then kill -9 $pidZIP 2>&1 1>/dev/null; fi
+											if disown ${pidZIP} 2>&1 1>/dev/null; then kill -9 ${pidZIP} 2>&1 1>/dev/null; fi
 											getTimeStamp
 											echo "[${TS}] ${CLI_param_action} ERROR."
 											exit 250
