@@ -33,7 +33,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.8'
+readonly SCRIPT_VERSION='0.8.1'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -141,10 +141,23 @@ function searchDisks()
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
+function unmountDisk()
+{
+ if [ "$(mount | grep "${_disk}")" ]
+        then
+                getTimeStamp
+                echo -e "[${TS}] Unmounting disk ${disk}..."
+                diskutil umountdisk "$disk" || exit 252
+                echo
+        fi
+}
+#////////////////////////////////////////////////////////////////////////////////////////////
+
 cleanup()
 {
  if [ "${imgFile}" ]; then rm -f "${imgFile}" 2>&1 1>/dev/null; fi
 }
+
 trap cleanup EXIT
 
 #////////////////////////////////////////////////////////////////////////////////////////////
@@ -224,14 +237,7 @@ if [ ! "${CLI_param_doNotAskForConfirmation}" ]
         fi
 
 sync 2>/dev/null
-
-if [ "$(mount | grep "${_disk}")" ]
-        then
-                getTimeStamp
-                echo -e "[${TS}] Unmounting disk ${disk}..."
-                diskutil umountdisk "$disk" || exit 252
-                echo
-        fi
+unmountDisk
 
 case "${CLI_param_action}" in
 
@@ -337,7 +343,10 @@ case "${CLI_param_action}" in
                ;;
 esac
 
+
+sync 2>/dev/null
+unmountDisk
 getTimeStamp
 echo -e "\n[${TS}] ${CLI_param_action} process finished.\n"
-sync 2>/dev/null
+
 exit 0
