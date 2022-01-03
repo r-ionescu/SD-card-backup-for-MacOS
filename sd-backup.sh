@@ -33,7 +33,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.8.1'
+readonly SCRIPT_VERSION='0.8.2'
 readonly LINE='==============================================================================='
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -45,7 +45,9 @@ declare TS _disk disk _imgFile imgFile
 declare -i diskSize imgSize
 
 readonly defaultBS='1m'
-readonly defaultImgFile="./SD-card.bs${defaultBS}.dd.img"
+readonly defaultImgFileName='SD-backup'
+readonly defaultImgFileExtension=".bs${defaultBS}.dd.img"
+readonly defaultImgFile="./${defaultImgFileName}${defaultImgFileExtension}"
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,8 +100,8 @@ USAGE:
       --disk disk-device   SD/USB card, eg: --disk /dev/disk2
 
       --file file-name     backup file name
-                           default value is "${defaultImgFile}"
-                           eg: --file ${defaultImgFile}
+                           default value is "${defaultImgFileName}"
+                           eg: --file ${defaultImgFileName}
 
       -r | --restore       restore to disk from backup file
 
@@ -185,7 +187,6 @@ if [[ "$@" =~ -{1,2}h(elp)? ]]
 
 disk="${CLI_param_disk}"
 if [[ ! "${disk}" =~ ^/dev/r{0.1}disk[0-9]+ ]]; then disk=''; fi
-
 if [ ! "$disk" ]
         then
                 declare -a mountedDisks=($(diskutil list | grep -oE '\/dev\/disk[0-9]+' | sort -u))
@@ -200,7 +201,6 @@ if [ ! "$disk" ]
                 SHOW_USAGE
                 exit 254
         fi
-
 disk="${disk/\/dev\/disk//dev/rdisk}"
 _disk="${disk/\/dev\/rdisk//dev/disk}"
 readonly _disk disk
@@ -217,6 +217,10 @@ if [ ! "$diskSize" ]
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 imgFile="${CLI_param_file:-$defaultImgFile}"
+if [[ ! "${imgFile}" =~ "${defaultImgFileExtension}"$ ]]
+        then
+                imgFile="${imgFile}${defaultImgFileExtension}"
+        fi
 _imgFile="${imgFile##*/}"
 readonly _imgFile imgFile
 
