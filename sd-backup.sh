@@ -4,9 +4,37 @@
 #
 #
 #
+#--------------------------------------------------------------------------------------------
 # SD card backup for MacOS
+#--------------------------------------------------------------------------------------------
 # https://github.com/r-ionescu/SD-card-backup-for-MacOS/blob/main/sd-backup.sh
 # Copyright (C) 2021  Raul Ionescu <raul.ionescu@outlook.com>
+#
+#
+# An easy to use command line tool for backup/restore SD cards/USB sticks,
+# using on-the-fly BZ2 compression.
+# Usage scenario example: Raspberry Pi SD card.
+#
+#
+#
+# USAGE:
+#
+#   sd-backup.sh [options in any order]
+#
+#
+#     --file file-name            backup file name, WITHOUT extension
+#                                 default value is "SD-backup"
+#                                 eg: --file SD-backup
+#
+#     --disk disk-device          SD/USB card, eg: --disk /dev/disk2
+#
+#     -s or --skip-archive-test   skip archive testing
+#
+#     -r or --restore             restore to disk from backup file
+#                                 without this parameter, a backup is performed
+#
+#     -y or --yes                 do NOT ask for confirmation
+#                                 (use this with extra precautions)
 #
 #
 #
@@ -33,7 +61,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.9'
+readonly SCRIPT_VERSION='0.9.1'
 readonly LINE='-------------------------------------------------------------------------------'
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -52,14 +80,17 @@ readonly defaultImgFileExtension=".bs${defaultBS}.dd.img"
 #////////////////////////////////////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-declare CLI_param_doNotAskForConfirmation
-if [[ "$@" =~ "--yes" ]]; then CLI_param_doNotAskForConfirmation="true"; fi
-readonly CLI_param_doNotAskForConfirmation
+declare CLI_param_shortOptions
+if [[ "$@" =~ [[:space:]]("-"[rsy]+)([[:space:]]|$) ]]
+        then
+                CLI_param_shortOptions="${BASH_REMATCH[1]}"
+        fi
+readonly CLI_param_shortOptions
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_action
-if [[ "$@" =~ "--restore" ]]
+if [[ "$@" =~ [[:space:]]"--restore"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "r" ]]
 	then
                 CLI_param_action="RESTORE"
 	else
@@ -69,8 +100,26 @@ readonly CLI_param_action
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
+declare CLI_param_skipArchiveTest
+if [[ "$@" =~ [[:space:]]"--skip-archive-test"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "s" ]]
+	then
+                CLI_param_skipArchiveTest="true"
+	fi
+readonly CLI_param_skipArchiveTest
+
+#////////////////////////////////////////////////////////////////////////////////////////////
+
+declare CLI_param_doNotAskForConfirmation
+if [[ "$@" =~ [[:space:]]"--yes"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "y" ]]
+        then
+                CLI_param_doNotAskForConfirmation="true"
+        fi
+readonly CLI_param_doNotAskForConfirmation
+
+#////////////////////////////////////////////////////////////////////////////////////////////
+
 declare CLI_param_disk
-if [[ "$@" =~ --disk[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
+if [[ "$@" =~ [[:space:]]"--disk"[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
 	then
 		CLI_param_disk="${BASH_REMATCH[1]}"
 	fi
@@ -79,7 +128,7 @@ readonly CLI_param_disk
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_file
-if [[ "$@" =~ --file[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
+if [[ "$@" =~ [[:space:]]"--file"[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
 	then
 		CLI_param_file="${BASH_REMATCH[1]}"
 	fi
@@ -92,18 +141,22 @@ function SHOW_USAGE()
 cat <<EOF
 USAGE:
 
-  ${SCRIPT_NAME} [--file file-name] [--disk disk-device] [--restore] [--yes]
+  ${SCRIPT_NAME} [options in any order]
 
 
-      --file file-name     backup file name
-                           default value is "${defaultImgFileName}"
-                           eg: --file ${defaultImgFileName}
+    --file file-name            backup file name, WITHOUT extension
+                                default value is "${defaultImgFileName}"
+                                eg: --file ${defaultImgFileName}
 
-      --disk disk-device   SD/USB card, eg: --disk /dev/disk2
+    --disk disk-device          SD/USB card, eg: --disk /dev/disk2
 
-      --restore            restore to disk from backup file
+    -s or --skip-archive-test   skip archive testing
 
-      --yes                do NOT ask for confirmation
+    -r or --restore             restore to disk from backup file
+                                without this parameter, a backup is performed
+
+    -y or --yes                 do NOT ask for confirmation
+                                (use this with extra precautions)
 
 EOF
 
@@ -241,9 +294,7 @@ case "${CLI_param_action}" in
                 getTimeStamp
                 echo "[${TS}] ${CLI_param_action} process started."
 
-
                 rm -f "${imgFile}.bz2" 2>&1 1>/dev/null
-
 
                 {
                 if [ "$(pv -V 2>/dev/null)" ]
@@ -255,18 +306,31 @@ case "${CLI_param_action}" in
                } || { getTimeStamp; echo "[${TS}] ${CLI_param_action} ERROR."; exit 250; }
 
 
-               getTimeStamp
-               echo -e "\n[${TS}] Testing archive."
-               sync 2>/dev/null
-               if ! bzip2 --test --verbose "${imgFile}.bz2"; then exit 249; fi
+               if [ ! "${CLI_param_skipArchiveTest}" ]
+                        then
+                               getTimeStamp
+                               echo -e "\n[${TS}] Testing archive."
+                               sync 2>/dev/null
+                               if ! bzip2 --test --verbose "${imgFile}.bz2"; then exit 249; fi
+                        fi
                ;;
 
 
        "restore")
-               getTimeStamp
-               echo -e "\n[${TS}] Testing archive."
-               if ! bzip2 --test --verbose "${imgFile}.bz2"; then exit 248; fi
+                if [ ! -f  "${imgFile}.bz2" ]
+                        then
+                                getTimeStamp
+                                echo "[${TS}] ERROR - file not found: \"${imgFile}.bz2\""
+                                exit 248
+                        fi
 
+                if [ ! "${CLI_param_skipArchiveTest}" ]
+                        then
+                               getTimeStamp
+                               echo -e "\n[${TS}] Testing archive."
+                               sync 2>/dev/null
+                               if ! bzip2 --test --verbose "${imgFile}.bz2"; then exit 249; fi
+                        fi
 
                if [[ "${imgFile}" =~ '.size-'([0-9]+)"${defaultImgFileExtension}"$ ]]
                         then
