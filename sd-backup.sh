@@ -61,7 +61,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.9.5'
+readonly SCRIPT_VERSION='0.9.6'
 readonly LINE='-------------------------------------------------------------------------------'
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -72,7 +72,7 @@ readonly OS_TYPE="$(uname)"
 declare TS _disk disk imgFile
 declare -i diskSize imgSize
 
-readonly bufferSize='1048576'
+readonly bufferSize='1m'
 readonly defaultImgFileName='SD-backup'
 readonly defaultImgFileExtension=".dd.img"
 
@@ -299,7 +299,7 @@ case "${CLI_param_action}" in
                 {
                 if [ "$(pv -V 2>/dev/null)" ]
                        then
-                               dd if="${disk}" bs="${bufferSize}" | pv  --wait --width 79 --size ${diskSize} | bzip2 --quiet --compress --best --stdout | dd of="${imgFile}.bz2" bs="${bufferSize}"
+                               dd if="${disk}" bs="${bufferSize}" | pv  --wait --width 79 --no-splice --buffer-size 8388608 --size ${diskSize} | bzip2 --quiet --compress --best --stdout | dd of="${imgFile}.bz2" bs="${bufferSize}"
                        else
                                dd if="${disk}" bs="${bufferSize}" | bzip2 --verbose --compress --best --stdout | dd of="${imgFile}.bz2" bs="${bufferSize}"
                        fi
@@ -364,7 +364,7 @@ case "${CLI_param_action}" in
                {
                if [ "$(pv -V 2>/dev/null)" ]
                         then
-                               bzip2 --quiet --decompress --stdout "${imgFile}.bz2" | pv --wait --width 79 --size ${imgSize} | dd of="${disk}" bs="${bufferSize}"
+                               bzip2 --quiet --decompress --stdout "${imgFile}.bz2" | pv --wait --width 79 --no-splice --buffer-size 8388608 --size ${imgSize} | dd of="${disk}" bs="${bufferSize}"
                         else
                                bzip2 --verbose --decompress --stdout "${imgFile}.bz2" | dd of="${disk}" bs="${bufferSize}"
                         fi
