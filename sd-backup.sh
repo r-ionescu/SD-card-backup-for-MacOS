@@ -61,7 +61,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.9.1'
+readonly SCRIPT_VERSION='0.9.2'
 readonly LINE='-------------------------------------------------------------------------------'
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -72,9 +72,9 @@ readonly OS_TYPE="$(uname)"
 declare TS _disk disk imgFile
 declare -i diskSize imgSize
 
-readonly defaultBS='1m'
+readonly bufferSize='1048576'
 readonly defaultImgFileName='SD-backup'
-readonly defaultImgFileExtension=".bs${defaultBS}.dd.img"
+readonly defaultImgFileExtension=".bs${bufferSize}.dd.img"
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////////////////////////////////////
@@ -299,9 +299,9 @@ case "${CLI_param_action}" in
                 {
                 if [ "$(pv -V 2>/dev/null)" ]
                        then
-                               dd if="${disk}" bs="${defaultBS}" | pv  --progress --wait --width 79 --size ${diskSize} | bzip2 --quiet --compress --best --stdout | dd of="${imgFile}.bz2" bs="${defaultBS}"
+                               dd if="${disk}" bs="${bufferSize}" | pv  --wait --width 79 --buffer-size ${bufferSize} --size ${diskSize} | bzip2 --quiet --compress --best --stdout | dd of="${imgFile}.bz2" bs="${bufferSize}"
                        else
-                               dd if="${disk}" bs="${defaultBS}" | bzip2 --verbose --compress --best --stdout | dd of="${imgFile}.bz2" bs="${defaultBS}"
+                               dd if="${disk}" bs="${bufferSize}" | bzip2 --verbose --compress --best --stdout | dd of="${imgFile}.bz2" bs="${bufferSize}"
                        fi
                } || { getTimeStamp; echo "[${TS}] ${CLI_param_action} ERROR."; exit 250; }
 
@@ -364,9 +364,9 @@ case "${CLI_param_action}" in
                {
                if [ "$(pv -V 2>/dev/null)" ]
                         then
-                               bzip2 --quiet --decompress --stdout "${imgFile}.bz2" | pv  --progress --wait --width 79 --size ${imgSize} | dd of="${disk}" bs="${defaultBS}"
+                               bzip2 --quiet --decompress --stdout "${imgFile}.bz2" | pv --wait --width 79 --buffer-size ${bufferSize} --size ${imgSize} | dd of="${disk}" bs="${bufferSize}"
                         else
-                               bzip2 --verbose --decompress --stdout "${imgFile}.bz2" | dd of="${disk}" bs="${defaultBS}"
+                               bzip2 --verbose --decompress --stdout "${imgFile}.bz2" | dd of="${disk}" bs="${bufferSize}"
                         fi
                 } || { getTimeStamp; echo "[${TS}] ${CLI_param_action} ERROR."; exit 245; }
                ;;
