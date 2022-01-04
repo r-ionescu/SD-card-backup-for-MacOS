@@ -61,7 +61,7 @@ shopt -s nocasematch
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
-readonly SCRIPT_VERSION='0.9.2'
+readonly SCRIPT_VERSION='0.9.3'
 readonly LINE='-------------------------------------------------------------------------------'
 declare tmp="${BASH_SOURCE[0]}"
 readonly SCRIPT_PATH="$( cd -- "$(dirname "${tmp}")" >/dev/null 2>&1 ; pwd -P )"
@@ -81,16 +81,16 @@ readonly defaultImgFileExtension=".bs${bufferSize}.dd.img"
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_shortOptions
-if [[ "$@" =~ [[:space:]]("-"[rsy]+)([[:space:]]|$) ]]
+if [[ "$@" =~ ([[:space:]]|^)("-"[rsy]+)([[:space:]]|$) ]]
         then
-                CLI_param_shortOptions="${BASH_REMATCH[1]}"
+                CLI_param_shortOptions="${BASH_REMATCH[2]}"
         fi
 readonly CLI_param_shortOptions
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_action
-if [[ "$@" =~ [[:space:]]"--restore"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "r" ]]
+if [[ "$@" =~ ([[:space:]]|^)"--restore"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "r" ]]
 	then
                 CLI_param_action="RESTORE"
 	else
@@ -101,7 +101,7 @@ readonly CLI_param_action
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_skipArchiveTest
-if [[ "$@" =~ [[:space:]]"--skip-archive-test"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "s" ]]
+if [[ "$@" =~ ([[:space:]]|^)"--skip-archive-test"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "s" ]]
 	then
                 CLI_param_skipArchiveTest="true"
 	fi
@@ -110,7 +110,7 @@ readonly CLI_param_skipArchiveTest
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_doNotAskForConfirmation
-if [[ "$@" =~ [[:space:]]"--yes"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "y" ]]
+if [[ "$@" =~ ([[:space:]]|^)"--yes"([[:space:]]|$) || "${CLI_param_shortOptions}" =~ "y" ]]
         then
                 CLI_param_doNotAskForConfirmation="true"
         fi
@@ -119,18 +119,18 @@ readonly CLI_param_doNotAskForConfirmation
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_disk
-if [[ "$@" =~ [[:space:]]"--disk"[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
+if [[ "$@" =~ ([[:space:]]|^)"--disk"[[:space:]]+([^[:space:]]+)([[:space:]]|$) ]]
 	then
-		CLI_param_disk="${BASH_REMATCH[1]}"
+		CLI_param_disk="${BASH_REMATCH[2]}"
 	fi
 readonly CLI_param_disk
 
 #////////////////////////////////////////////////////////////////////////////////////////////
 
 declare CLI_param_file
-if [[ "$@" =~ [[:space:]]"--file"[[:space:]]+([^[:space:]]+)([[:space:]]*|$) ]]
+if [[ "$@" =~ ([[:space:]]|^)"--file"[[:space:]]+([^[:space:]]+)([[:space:]]|$) ]]
 	then
-		CLI_param_file="${BASH_REMATCH[1]}"
+		CLI_param_file="${BASH_REMATCH[2]}"
 	fi
 readonly CLI_param_file
 
